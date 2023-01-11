@@ -9,10 +9,13 @@ from glob import glob
 
 filesProcessed = 0
 filesOCRed = 0
+filesWithNoCreatedDate = 0
 
 def get_info(path):
     global filesProcessed
     global filesOCRed
+    global filesWithNoCreatedDate
+
     print(path)
     with open(path, 'rb') as f:
         pdf = PdfReader(f)
@@ -20,14 +23,20 @@ def get_info(path):
         text = pdf.pages[0].extract_text()
     
     if text=="":
-        print("no embedded OCR text, running OCRmyPDF")
+        print("*** no embedded OCR text, running OCRmyPDF ***")
         subprocess.run(('ocrmypdf', path, path)) # by default ocrmypdf will work in English. I want the original file overwritten with the OCRed version
         filesOCRed += 1
 
     # run date correct after any OCR activity otherwise the OCRing will cause the file to have today's date
-    touchDate = info.creation_date_raw[2:14]
-    subprocess.run(('touch', '-t', touchDate, path))
-    filesProcessed += 1
+    try:
+        info.creation_date_raw
+    except:
+        filesWithNoCreatedDate += 1
+        print("*** no creation date in the PDF, skipping ***")
+    else:
+        touchDate = info.creation_date_raw[2:14]
+        subprocess.run(('touch', '-t', touchDate, path))
+        filesProcessed += 1
 
 if __name__ == '__main__':
     directories = glob("*.pdf")
@@ -36,3 +45,5 @@ if __name__ == '__main__':
     print ("--------------------------------")
     print ("Files processed = " + str(filesProcessed))
     print ("Files that had OCR added = " + str(filesOCRed))
+    print ("Files that had no date and need manual date correction = " + str(filesWithNoCreatedDate))
+
